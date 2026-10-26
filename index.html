@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Lámpara de Densidades y Flotabilidad</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+            --panel-border: #334155;
+            --accent-cyan: #38bdf8;
+            --accent-green: #34d399;
+            --accent-yellow: #fbbf24;
+            --accent-rose: #f43f5e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        header p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            flex: 1;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 960px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+            max-height: calc(100vh - 100px);
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent-cyan);
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 0.4rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-main);
+        }
+
+        .control-label span.value {
+            font-family: monospace;
+            color: var(--accent-yellow);
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #334155;
+            border-radius: 3px;
+            outline: none;
+            accent-color: var(--accent-cyan);
+            cursor: pointer;
+        }
+
+        .presets-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+
+        .btn {
+            background: #334155;
+            color: var(--text-main);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.6rem 0.8rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background: #475569;
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0369a1, #075985);
+        }
+
+        .btn-toggle-active {
+            background: linear-gradient(135deg, #d97706, #b45309);
+            color: white;
+            box-shadow: 0 0 12px rgba(217, 119, 6, 0.4);
+        }
+
+        .color-picker-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid var(--panel-border);
+            border-radius: 50%;
+        }
+
+        /* Simulation Canvas Zone */
+        .simulation-container {
+            display: grid;
+            grid-template-rows: 1fr auto;
+            gap: 1rem;
+        }
+
+        .lab-stage {
+            background: #020617;
+            border: 1px solid var(--panel-border);
+            border-radius: 1rem;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            min-height: 480px;
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.8);
+        }
+
+        canvas#simCanvas {
+            display: block;
+            max-width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+
+        canvas#simCanvas:active {
+            cursor: grabbing;
+        }
+
+        /* Dashboards and Charts */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .data-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.3rem;
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        .badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-oil { background: rgba(251, 191, 36, 0.2); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
+        .badge-interface { background: rgba(52, 211, 153, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
+        .badge-water { background: rgba(56, 189, 248, 0.2); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
+        .badge-bottom { background: rgba(244, 63, 94, 0.2); color: var(--accent-rose); border: 1px solid var(--accent-rose); }
+
+        .chart-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas#chartCanvas {
+            width: 100%;
+            height: 120px;
+        }
+
+        .modal-accordion {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .accordion-header {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: var(--accent-cyan);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .accordion-content {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            line-height: 1.4;
+            display: none;
+        }
+
+        .accordion-content.open {
+            display: block;
+        }
+
+        .tooltip-instruction {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid var(--panel-border);
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>🧪 Laboratorio de Densidades & Arquímedes</h1>
+            <p>Simulador interactivo de fluidos inmiscibles y flotabilidad en tiempo real</p>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+            Lámpara de Densidades v2.5
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Control Panel -->
+        <aside class="panel">
+            <!-- Fluid Density Controls -->
+            <section>
+                <div class="section-title">💧 Fluidos Inmiscibles</div>
+                
+                <div class="control-group" style="margin-bottom: 0.8rem;">
+                    <div class="control-label">
+                        <span>Densidad Agua (ρ_agua)</span>
+                        <span class="value" id="val-rho-water">1.00 g/cm³</span>
+                    </div>
+                    <input type="range" id="slider-rho-water" min="0.95" max="1.05" step="0.005" value="1.00">
+                </div>
+
+                <div class="control-group" style="margin-bottom: 0.8rem;">
+                    <div class="control-label">
+                        <span>Densidad Aceite (ρ_aceite)</span>
+                        <span class="value" id="val-rho-oil">0.92 g/cm³</span>
+                    </div>
+                    <input type="range" id="slider-rho-oil" min="0.80" max="0.95" step="0.005" value="0.92">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Color Tinte del Agua</span>
+                    </div>
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="picker-water-color" value="#0088ff">
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">Ajustar tinte acuoso</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Object Customization & Presets -->
+            <section>
+                <div class="section-title">📦 Objeto Sumergido</div>
+                
+                <div style="margin-bottom: 0.8rem;">
+                    <span style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.4rem;">Predeterminados del laboratorio:</span>
+                    <div class="presets-grid">
+                        <button class="btn" onclick="setPreset('corcho')">🪵 Corcho</button>
+                        <button class="btn" onclick="setPreset('madera')">🪵 Madera</button>
+                        <button class="btn" onclick="setPreset('hielo')">🧊 Hielo</button>
+                        <button class="btn" onclick="setPreset('plastico')">🔴 Plástico</button>
+                        <button class="btn" onclick="setPreset('vidrio')">🔮 Canica</button>
+                        <button class="btn" onclick="setPreset('moneda')">🪙 Moneda</button>
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-bottom: 0.8rem;">
+                    <div class="control-label">
+                        <span>Masa del Objeto (m)</span>
+                        <span class="value" id="val-obj-mass">45.0 g</span>
+                    </div>
+                    <input type="range" id="slider-obj-mass" min="1" max="200" step="0.5" value="45">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Volumen del Objeto (V)</span>
+                        <span class="value" id="val-obj-vol">50.0 cm³</span>
+                    </div>
+                    <input type="range" id="slider-obj-vol" min="5" max="200" step="1" value="50">
+                </div>
+            </section>
+
+            <!-- Action Buttons -->
+            <section style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <button class="btn btn-primary" id="btn-add-object" onclick="dropObject()">🧪 Soltar / Reiniciar Objeto</button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <button class="btn" id="btn-pause" onclick="togglePause()">⏸️ Pausar</button>
+                    <button class="btn" id="btn-lamp" onclick="toggleLavaLamp()">💡 Luz Lava</button>
+                </div>
+            </section>
+
+            <!-- Theory Accordion -->
+            <div class="modal-accordion">
+                <div class="accordion-header" onclick="toggleAccordion()">
+                    <span>📚 Fundamento Científico</span>
+                    <span id="accordion-icon">▲</span>
+                </div>
+                <div class="accordion-content" id="accordion-content">
+                    <p><strong>Ley de Densidad:</strong> $\rho = \frac{m}{V}$. Un cuerpo menos denso que el fluido flota, mientras que uno más denso se hunde.</p>
+                    <p style="margin-top:0.4rem;"><strong>Principio de Arquímedes:</strong> Todo cuerpo sumergido recibe un empuje vertical hacia arriba igual al peso del fluido desalojado ($E = \rho_{líquido} \cdot g \cdot V_{submerge}$).</p>
+                    <p style="margin-top:0.4rem;"><strong>Interfaz Agua-Aceite:</strong> Si $\rho_{aceite} < \rho_{objeto} < \rho_{agua}$, el objeto alcanza el equilibrio repartiendo su volumen entre ambos fluidos.</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Interactive Simulation Container -->
+        <section class="simulation-container">
+            <div class="lab-stage">
+                <div class="tooltip-instruction">💡 Arrastra el objeto con el ratón o pulsa "Soltar Objeto"</div>
+                <canvas id="simCanvas" width="500" height="520"></canvas>
+            </div>
+
+            <!-- Dashboard & Comparative Density Chart -->
+            <div class="dashboard-grid">
+                <div class="data-card">
+                    <div class="data-row">
+                        <span>Densidad del Objeto ($\rho_{obj}$):</span>
+                        <span id="data-obj-density" style="font-weight: bold; color: var(--accent-yellow);">0.900 g/cm³</span>
+                    </div>
+                    <div class="data-row">
+                        <span>Peso Total ($W = m \cdot g$):</span>
+                        <span id="data-obj-weight">0.441 N</span>
+                    </div>
+                    <div class="data-row">
+                        <span>Fuerza de Empuje Resultante ($E$):</span>
+                        <span id="data-obj-buoyancy">0.441 N</span>
+                    </div>
+                    <div class="data-row">
+                        <span>Estado de Flotabilidad:</span>
+                        <span id="data-obj-state" class="badge badge-interface">En Interfaz</span>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.2rem; font-weight: bold;">Comparador de Densidades (g/cm³)</span>
+                    <canvas id="chartCanvas" width="220" height="100"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Global Simulation State
+        const state = {
+            waterDensity: 1.00,
+            oilDensity: 0.92,
+            waterColor: '#0088ff',
+            objectMass: 45.0,
+            objectVolume: 50.0,
+            isPaused: false,
+            lavaLampActive: false,
+            gravity: 980, // scale representation cm/s^2
+            dragged: false,
+            mousePos: { x: 0, y: 0 }
+        };
+
+        // Lava Lamp Bubbles Array
+        let lavaBubbles = [];
+
+        // Main Flask Geometry Dimensions (in Canvas PX)
+        const flask = {
+            x: 160,
+            y: 40,
+            width: 180,
+            height: 420,
+            oilHeight: 180,
+            waterHeight: 180
+        };
+
+        // Object Physical State
+        const physicalObject = {
+            x: flask.x + flask.width / 2,
+            y: flask.y + 30,
+            radius: 20,
+            vx: 0,
+            vy: 0,
+            density: 0.90,
+            isDragging: false
+        };
+
+        // DOM Element Cache
+        const simCanvas = document.getElementById('simCanvas');
+        const ctx = simCanvas.getContext('2d');
+        const chartCanvas = document.getElementById('chartCanvas');
+        const chartCtx = chartCanvas.getContext('2d');
+
+        // Sliders & Controls DOM
+        const sliderWater = document.getElementById('slider-rho-water');
+        const sliderOil = document.getElementById('slider-rho-oil');
+        const sliderMass = document.getElementById('slider-obj-mass');
+        const sliderVol = document.getElementById('slider-obj-vol');
+        const pickerColor = document.getElementById('picker-water-color');
+
+        function initControls() {
+            sliderWater.addEventListener('input', (e) => {
+                state.waterDensity = parseFloat(e.target.value);
+                document.getElementById('val-rho-water').innerText = state.waterDensity.toFixed(3) + ' g/cm³';
+                updateCalculations();
+            });
+
+            sliderOil.addEventListener('input', (e) => {
+                state.oilDensity = parseFloat(e.target.value);
+                document.getElementById('val-rho-oil').innerText = state.oilDensity.toFixed(3) + ' g/cm³';
+                updateCalculations();
+            });
+
+            sliderMass.addEventListener('input', (e) => {
+                state.objectMass = parseFloat(e.target.value);
+                document.getElementById('val-obj-mass').innerText = state.objectMass.toFixed(1) + ' g';
+                updateCalculations();
+            });
+
+            sliderVol.addEventListener('input', (e) => {
+                state.objectVolume = parseFloat(e.target.value);
+                document.getElementById('val-obj-vol').innerText = state.objectVolume.toFixed(1) + ' cm³';
+                updateCalculations();
+            });
+
+            pickerColor.addEventListener('input', (e) => {
+                state.waterColor = e.target.value;
+            });
+
+            // Canvas Drag Interactions
+            simCanvas.addEventListener('mousedown', onMouseDown);
+            simCanvas.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+
+            simCanvas.addEventListener('touchstart', onTouchStart, {passive: false});
+            simCanvas.addEventListener('touchmove', onTouchMove, {passive: false});
+            window.addEventListener('touchend', onMouseUp);
+        }
+
+        // Preset Library
+        const PRESETS = {
+            corcho: { mass: 12, vol: 50 },
+            madera: { mass: 25, vol: 50 },
+            hielo: { mass: 45.8, vol: 50 },
+            plastico: { mass: 45, vol: 50 },
+            vidrio: { mass: 125, vol: 50 },
+            moneda: { mass: 180, vol: 20 }
+        };
+
+        function setPreset(key) {
+            const preset = PRESETS[key];
+            if (preset) {
+                state.objectMass = preset.mass;
+                state.objectVolume = preset.vol;
+
+                sliderMass.value = preset.mass;
+                sliderVol.value = preset.vol;
+
+                document.getElementById('val-obj-mass').innerText = preset.mass.toFixed(1) + ' g';
+                document.getElementById('val-obj-vol').innerText = preset.vol.toFixed(1) + ' cm³';
+
+                dropObject();
+            }
+        }
+
+        function dropObject() {
+            physicalObject.x = flask.x + flask.width / 2;
+            physicalObject.y = flask.y + 20;
+            physicalObject.vx = 0;
+            physicalObject.vy = 0;
+            updateCalculations();
+        }
+
+        function togglePause() {
+            state.isPaused = !state.isPaused;
+            document.getElementById('btn-pause').innerText = state.isPaused ? '▶️ Reanudar' : '⏸️ Pausar';
+        }
+
+        function toggleLavaLamp() {
+            state.lavaLampActive = !state.lavaLampActive;
+            const btn = document.getElementById('btn-lamp');
+            if (state.lavaLampActive) {
+                btn.classList.add('btn-toggle-active');
+                initLavaBubbles();
+            } else {
+                btn.classList.remove('btn-toggle-active');
+                lavaBubbles = [];
+            }
+        }
+
+        function toggleAccordion() {
+            const content = document.getElementById('accordion-content');
+            const icon = document.getElementById('accordion-icon');
+            content.classList.toggle('open');
+            icon.innerText = content.classList.contains('open') ? '▼' : '▲';
+        }
+
+        function updateCalculations() {
+            state.objectDensity = state.objectMass / state.objectVolume;
+            
+            // Adjust visually physical size based on volume (cube-root scaling for sphere radius)
+            // Volume range 5 to 200 cm³ -> Radius 12px to 32px
+            physicalObject.radius = 12 + Math.cbrt(state.objectVolume) * 3.5;
+
+            document.getElementById('data-obj-density').innerText = state.objectDensity.toFixed(3) + ' g/cm³';
+
+            // Real Weight (W = m * g) in Newtons (assuming g = 9.81 m/s^2)
+            const weightN = (state.objectMass / 1000) * 9.81;
+            document.getElementById('data-obj-weight').innerText = weightN.toFixed(3) + ' N';
+
+            // Calculate submerged equilibrium state for display badge & force
+            const oilTopY = flask.y + 40;
+            const interfaceY = oilTopY + flask.oilHeight;
+            const waterBottomY = interfaceY + flask.waterHeight;
+
+            let badgeState = '';
+            let badgeClass = '';
+            let buoyancyN = 0;
+
+            if (state.objectDensity < state.oilDensity) {
+                badgeState = 'Flotando en Aceite';
+                badgeClass = 'badge-oil';
+                buoyancyN = weightN; // In equilibrium, Buoyancy = Weight
+            } else if (state.objectDensity >= state.oilDensity && state.objectDensity <= state.waterDensity) {
+                badgeState = 'Suspendido en Interfaz';
+                badgeClass = 'badge-interface';
+                buoyancyN = weightN;
+            } else {
+                badgeState = 'Hundido en el Fondo';
+                badgeClass = 'badge-bottom';
+                // Max buoyancy displacement fully in water
+                buoyancyN = (state.waterDensity * state.objectVolume / 1000) * 9.81;
+            }
+
+            const badgeEl = document.getElementById('data-obj-state');
+            badgeEl.innerText = badgeState;
+            badgeEl.className = 'badge ' + badgeClass;
+
+            document.getElementById('data-obj-buoyancy').innerText = buoyancyN.toFixed(3) + ' N';
+
+            drawChart();
+        }
+
+        function initLavaBubbles() {
+            lavaBubbles = [];
+            for (let i = 0; i < 14; i++) {
+                lavaBubbles.push({
+                    x: flask.x + 20 + Math.random() * (flask.width - 40),
+                    y: flask.y + flask.oilHeight + Math.random() * flask.waterHeight,
+                    radius: 6 + Math.random() * 12,
+                    speedY: (Math.random() - 0.5) * 1.2,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        function getCanvasMousePos(e) {
+            const rect = simCanvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (simCanvas.width / rect.width),
+                y: (clientY - rect.top) * (simCanvas.height / rect.height)
+            };
+        }
+
+        function onMouseDown(e) {
+            const pos = getCanvasMousePos(e);
+            const dist = Math.hypot(pos.x - physicalObject.x, pos.y - physicalObject.y);
+            if (dist < physicalObject.radius + 10) {
+                physicalObject.isDragging = true;
+                physicalObject.vx = 0;
+                physicalObject.vy = 0;
+            }
+        }
+
+        function onMouseMove(e) {
+            if (physicalObject.isDragging) {
+                const pos = getCanvasMousePos(e);
+                physicalObject.x = Math.max(flask.x + physicalObject.radius, Math.min(flask.x + flask.width - physicalObject.radius, pos.x));
+                physicalObject.y = Math.max(flask.y + physicalObject.radius, Math.min(flask.y + flask.height - physicalObject.radius, pos.y));
+            }
+        }
+
+        function onMouseUp() {
+            physicalObject.isDragging = false;
+        }
+
+        function onTouchStart(e) {
+            onMouseDown(e);
+            if (physicalObject.isDragging) e.preventDefault();
+        }
+
+        function onTouchMove(e) {
+            onMouseMove(e);
+            if (physicalObject.isDragging) e.preventDefault();
+        }
+
+        let waveOffset = 0;
+        function updatePhysics(dt) {
+            waveOffset += 0.05;
+
+            // Lava lamp bubbles movement
+            if (state.lavaLampActive) {
+                lavaBubbles.forEach(b => {
+                    b.y += b.speedY;
+                    b.x += Math.sin(waveOffset + b.phase) * 0.4;
+
+                    const minY = flask.y + 40;
+                    const maxY = flask.y + flask.height - 15;
+
+                    if (b.y < minY || b.y > maxY) {
+                        b.speedY *= -1;
+                    }
+                });
+            }
+
+            if (physicalObject.isDragging || state.isPaused) return;
+
+            const oilTopY = flask.y + 40;
+            const interfaceY = oilTopY + flask.oilHeight;
+            const waterBottomY = interfaceY + flask.waterHeight;
+
+            // Determine fluid immersion proportion
+            const objTop = physicalObject.y - physicalObject.radius;
+            const objBottom = physicalObject.y + physicalObject.radius;
+            const heightTotal = physicalObject.radius * 2;
+
+            let densityFluidEff = 0;
+
+            if (objBottom <= oilTopY) {
+                // Air (density ~0)
+                densityFluidEff = 0.001;
+            } else if (objTop >= waterBottomY) {
+                // Bottom surface
+                densityFluidEff = state.waterDensity;
+            } else {
+                // Calculate overlap with Oil layer and Water layer
+                const oilOverlap = Math.max(0, Math.min(objBottom, interfaceY) - Math.max(objTop, oilTopY));
+                const waterOverlap = Math.max(0, Math.min(objBottom, waterBottomY) - Math.max(objTop, interfaceY));
+
+                const fracOil = oilOverlap / heightTotal;
+                const fracWater = waterOverlap / heightTotal;
+                const fracAir = Math.max(0, 1 - fracOil - fracWater);
+
+                densityFluidEff = (fracOil * state.oilDensity) + (fracWater * state.waterDensity) + (fracAir * 0.001);
+            }
+
+            // Archimedes Net Acceleration: a = g * (1 - ρ_fluid / ρ_obj)
+            const g = 600; // visual gravity constant
+            const netAccelY = g * (1 - (densityFluidEff / state.objectDensity));
+
+            // Apply fluid damping/viscosity force
+            const viscosity = 3.5;
+            physicalObject.vy += (netAccelY - physicalObject.vy * viscosity) * dt;
+            physicalObject.y += physicalObject.vy * dt;
+
+            // Wall Collision Constraints
+            const minY = flask.y + 20 + physicalObject.radius;
+            const maxY = flask.y + flask.height - 10 - physicalObject.radius;
+
+            if (physicalObject.y > maxY) {
+                physicalObject.y = maxY;
+                physicalObject.vy = 0;
+            } else if (physicalObject.y < minY) {
+                physicalObject.y = minY;
+                physicalObject.vy = 0;
+            }
+        }
+
+        function renderSim() {
+            ctx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+
+            const oilTopY = flask.y + 40;
+            const interfaceY = oilTopY + flask.oilHeight;
+            const waterBottomY = interfaceY + flask.waterHeight;
+
+            // 1. Lava Lamp Bottom Glow Effect
+            if (state.lavaLampActive) {
+                const glowGradient = ctx.createRadialGradient(
+                    flask.x + flask.width/2, waterBottomY + 20, 10,
+                    flask.x + flask.width/2, waterBottomY - 100, 200
+                );
+                glowGradient.addColorStop(0, 'rgba(255, 180, 0, 0.8)');
+                glowGradient.addColorStop(0.5, 'rgba(255, 80, 0, 0.3)');
+                glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = glowGradient;
+                ctx.fillRect(flask.x - 40, flask.y, flask.width + 80, flask.height + 60);
+            }
+
+            // 2. Render Flask Glass Background Container
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(flask.x, flask.y, flask.width, flask.height);
+
+            // 3. Render Oil Layer (Top Fluid)
+            const oilGrad = ctx.createLinearGradient(flask.x, oilTopY, flask.x, interfaceY);
+            oilGrad.addColorStop(0, 'rgba(253, 224, 71, 0.75)');
+            oilGrad.addColorStop(1, 'rgba(234, 179, 8, 0.85)');
+            ctx.fillStyle = oilGrad;
+            ctx.fillRect(flask.x, oilTopY, flask.width, flask.oilHeight);
+
+            // 4. Render Water Layer (Bottom Fluid with custom tint)
+            // Convert Hex Color to RGBA
+            const hexToRgb = (hex) => {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '0, 136, 255';
+            };
+            const rgbVal = hexToRgb(state.waterColor);
+
+            const waterGrad = ctx.createLinearGradient(flask.x, interfaceY, flask.x, waterBottomY);
+            waterGrad.addColorStop(0, `rgba(${rgbVal}, 0.7)`);
+            waterGrad.addColorStop(1, `rgba(${rgbVal}, 0.9)`);
+            ctx.fillStyle = waterGrad;
+            ctx.fillRect(flask.x, interfaceY, flask.width, flask.waterHeight);
+
+            // 5. Animated Interface Wave/Meniscus Line
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 2;
+            for (let x = 0; x <= flask.width; x += 5) {
+                const waveY = interfaceY + Math.sin((x * 0.05) + waveOffset) * 2;
+                if (x === 0) ctx.moveTo(flask.x + x, waveY);
+                else ctx.lineTo(flask.x + x, waveY);
+            }
+            ctx.stroke();
+
+            // 6. Render Lava Lamp Thermal Bubbles
+            if (state.lavaLampActive) {
+                lavaBubbles.forEach(b => {
+                    ctx.beginPath();
+                    ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                    const bGrad = ctx.createRadialGradient(b.x - b.radius*0.3, b.y - b.radius*0.3, 2, b.x, b.y, b.radius);
+                    bGrad.addColorStop(0, '#ffedd5');
+                    bGrad.addColorStop(0.6, '#f97316');
+                    bGrad.addColorStop(1, '#c2410c');
+                    ctx.fillStyle = bGrad;
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                    ctx.stroke();
+                });
+            }
+
+            // 7. Render Submerged Physics Object
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(physicalObject.x, physicalObject.y, physicalObject.radius, 0, Math.PI * 2);
+            
+            // Sphere texture shading gradient
+            const objGrad = ctx.createRadialGradient(
+                physicalObject.x - physicalObject.radius * 0.3,
+                physicalObject.y - physicalObject.radius * 0.3,
+                physicalObject.radius * 0.1,
+                physicalObject.x,
+                physicalObject.y,
+                physicalObject.radius
+            );
+            objGrad.addColorStop(0, '#ffffff');
+            objGrad.addColorStop(0.3, '#38bdf8');
+            objGrad.addColorStop(1, '#0369a1');
+
+            ctx.fillStyle = objGrad;
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 10;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#f8fafc';
+            ctx.stroke();
+            ctx.restore();
+
+            // 8. Glass Beaker Overlay (Reflections & Graduation Marks)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(flask.x, flask.y, flask.width, flask.height);
+
+            // Glass Reflection Highlights
+            const glassGrad = ctx.createLinearGradient(flask.x, flask.y, flask.x + flask.width, flask.y);
+            glassGrad.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+            glassGrad.addColorStop(0.15, 'rgba(255, 255, 255, 0.02)');
+            glassGrad.addColorStop(0.85, 'rgba(255, 255, 255, 0.02)');
+            glassGrad.addColorStop(1, 'rgba(255, 255, 255, 0.15)');
+            ctx.fillStyle = glassGrad;
+            ctx.fillRect(flask.x, flask.y, flask.width, flask.height);
+
+            // Graduation Tick Marks & Labels
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.font = '10px monospace';
+            for (let y = flask.y + 40; y <= flask.y + flask.height - 20; y += 30) {
+                ctx.fillRect(flask.x + flask.width - 15, y, 10, 1);
+                const mlValue = Math.round((flask.y + flask.height - y) * 1.2);
+                ctx.fillText(`${mlValue} ml`, flask.x + flask.width - 48, y + 3);
+            }
+
+            // Layer Labels in Beaker
+            ctx.font = 'bold 12px Segoe UI';
+            ctx.fillStyle = 'rgba(234, 179, 8, 0.9)';
+            ctx.fillText(`ACEITE (${state.oilDensity.toFixed(2)} g/cm³)`, flask.x + 15, oilTopY + 25);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillText(`AGUA (${state.waterDensity.toFixed(2)} g/cm³)`, flask.x + 15, interfaceY + 30);
+        }
+
+        function drawChart() {
+            chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+
+            const bars = [
+                { name: 'Aceite', value: state.oilDensity, color: '#fbbf24' },
+                { name: 'Objeto', value: state.objectDensity, color: '#38bdf8' },
+                { name: 'Agua', value: state.waterDensity, color: '#34d399' }
+            ];
+
+            const maxDensity = 3.0; // Chart upper limit scale
+            const barWidth = 35;
+            const startX = 25;
+            const chartHeight = 70;
+            const baseY = 85;
+
+            bars.forEach((bar, index) => {
+                const x = startX + index * 65;
+                const scaledValue = Math.min(bar.value, maxDensity);
+                const h = (scaledValue / maxDensity) * chartHeight;
+                const y = baseY - h;
+
+                // Draw Bar
+                chartCtx.fillStyle = bar.color;
+                chartCtx.fillRect(x, y, barWidth, h);
+
+                // Draw Value
+                chartCtx.fillStyle = '#f8fafc';
+                chartCtx.font = 'bold 9px monospace';
+                chartCtx.textAlign = 'center';
+                chartCtx.fillText(bar.value.toFixed(2), x + barWidth / 2, y - 4);
+
+                // Draw Label
+                chartCtx.fillStyle = '#94a3b8';
+                chartCtx.font = '10px Segoe UI';
+                chartCtx.fillText(bar.name, x + barWidth / 2, baseY + 14);
+            });
+        }
+
+        let lastTime = performance.now();
+        function loop(now) {
+            const dt = Math.min((now - lastTime) / 1000, 0.033); // Cap dt to prevent physics tunneling
+            lastTime = now;
+
+            updatePhysics(dt);
+            renderSim();
+
+            requestAnimationFrame(loop);
+        }
+
+        // Initialize Simulation on Load
+        window.onload = () => {
+            initControls();
+            updateCalculations();
+            requestAnimationFrame(loop);
+        };
+    </script>
+</body>
+</html>
